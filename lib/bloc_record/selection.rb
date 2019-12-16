@@ -5,15 +5,18 @@
  
      if ids.length == 1
        find_one(ids.first)
-     else
+     elsif ids.length > 1
        rows = connection.execute <<-SQL
          SELECT #{columns.join ","} FROM #{table}
          WHERE id IN (#{ids.join(",")});
        SQL
  
        rows_to_array(rows)
+      else 
+       puts "ERROR INVALID ID USE POSITIVE NUMBER"
      end
    end
+   
    def find_one(id)
      row = connection.get_first_row <<-SQL
        SELECT #{columns.join ","} FROM #{table}
