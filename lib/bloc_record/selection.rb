@@ -3,27 +3,40 @@
  module Selection
    def find(*ids)
  
-     if ids.length == 1
-       find_one(ids.first)
-     elsif ids.length > 1
-       rows = connection.execute <<-SQL
-         SELECT #{columns.join ","} FROM #{table}
-         WHERE id IN (#{ids.join(",")});
-       SQL
- 
-       rows_to_array(rows)
-      else 
-       puts "ERROR INVALID ID USE POSITIVE NUMBER"
-     end
+    if ids.length == 1
+      find_one(ids.first)
+    else
+      ids.each do |id|
+        if id.is_a?(Integer) && id > 0
+          next
+        else
+          puts "ERORR "
+          return -1
+        end
+      end
+      rows = connection.execute <<-SQL
+        SELECT #{columns.join ","} FROM #{table}
+        WHERE id IN (#{ids.join(",")});
+      SQL
+
+      rows_to_array(rows)
+    end
    end
    
    def find_one(id)
-     row = connection.get_first_row <<-SQL
-       SELECT #{columns.join ","} FROM #{table}
-       WHERE id = #{id};
-     SQL
- 
-     init_object_from_row(row)
+    if id.is_a?(Integer) && id > 0
+      row = connection.get_first_row <<-SQL
+        SELECT #{columns.join ","} FROM #{table}
+        WHERE id = #{id};
+      SQL
+
+      init_object_from_row(row)
+    else
+      puts "EROR INVALID ID ."
+      return -1
+    end
+    end
+    
    end
    
    def find_by(attribute, value)
@@ -88,6 +101,47 @@
    end
    
    
+  def find_each(start = nil , batch_size = 200)
+    
+    if start != nil && batch_size != nil
+      rows = connection.execute <<-SQL
+        SELECT #{columns.join ","} FROM #{table}
+        LIMIT #{batch_size} OFFSET #{start};
+      SQL
+    elsif start == nil && batch_size != nil
+      rows = connection.execute <<-SQL
+        SELECT #{columns.join ","} FROM #{table}
+        LIMIT #{batch_size};
+      SQL
+    elsif start != nil && batch_size == nil
+      rows = connection.execute <<-SQL
+        SELECT #{columns.join ","} FROM #{table}
+        OFFSET #{start};
+      SQL
+    else
+      rows = connection.execute <<-SQL
+        SELECT #{columns.join ","} FROM #{table};
+      SQL
+    end
+
+    row_array = rows_to_array(rows)
+
+    yield(row_array)
+
+  end
+
+  def find_in_batches(start, batch_size)
+    rows = connection.execute <<-SQL
+      SELECT #{columns.join ","} FROM #{table}
+      LIMIT #{batch_size} OFFSET #{start};
+    SQL
+
+    row_array = rows_to_array(rows)
+
+    yield(row_array)
+  end
+   
+   
    private
    
    def init_object_from_row(row)
@@ -101,3 +155,12 @@
      rows.map { |row| new(Hash[columns.zip(row)]) }
    end
  end
+ 
+def method_missing(method_name, *args)
+  
+  array = method_name.to_s.split("_")
+  att = array.last 
+  
+  find_by(att, *args)
+  
+end
