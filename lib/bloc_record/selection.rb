@@ -165,11 +165,19 @@
    end
    
    def order(*args)
-     if args.count > 1
-       order = args.join(",")
-     else
-       order = args.first.to_s
-     end
+    array = []
+    args.each do |arg|
+      case arg
+      when String
+        array << arg
+      when Symbol
+        array << arg.to_s
+      when Hash
+        array << arg.map{|key, value| "#{key} #{value}"}
+      end
+    end
+    order = array.join(",")
+    puts order
      rows = connection.execute <<-SQL
        SELECT * FROM #{table}
        ORDER BY #{order};
@@ -194,6 +202,16 @@
            SELECT * FROM #{table}
            INNER JOIN #{args.first} ON #{args.first}.#{table}_id = #{table}.id
          SQL
+       when Hash
+        aso = args.first.flatten
+
+        rows = connection.execute <<-SQL
+          SELECT * FROM #{table}
+          INNER JOIN #{aso.first} ON #{aso.first}.#{table}_id = #{table}.id
+          INNER JOIN #{aso.last} ON #{aso.last}.#{aso.first}_id = #{aso.first}.id
+        SQL
+      else
+        "error."
        end
      end
  
