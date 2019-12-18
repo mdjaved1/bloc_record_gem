@@ -52,26 +52,40 @@
        data["id"] = connection.execute("SELECT last_insert_rowid();")[0][0]
        new(data)
      end
-     def update(ids, updates)
+    def update(ids, updates)
+      case updates
+      when Hash
+        updates = BlocRecord::Utility.convert_keys(updates)
+        updates.delete "id"
+        u_arr = updates.map { |key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}" }
+        if ids.class == Fixnum
+          where_clause = "WHERE id = #{ids};"
+        elsif ids.class == Array
+          where_clause = ids.empty? ? ";" : "WHERE id IN (#{ids.join(",")});"
+        else
+          where_clause = ";"
+        end
 
-       # #1
-       updates = BlocRecord::Utility.convert_keys(updates)
-       updates.delete "id"
-       # #2
-       updates_array = updates.map { |key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}" }
-       if ids.class == Fixnum
-         where_clause = "WHERE id = #{ids};"
-       elsif ids.class == Array
-         where_clause = ids.empty? ? ";" : "WHERE id IN (#{ids.join(",")});"
-       else
-         where_clause = ";"
-       end       # #3
-       connection.execute <<-SQL
-         UPDATE #{table}
-         SET #{updates_array * ","} #{where_clause}
-       SQL
-
-       true
-     end
-   end 
- end
+        connection.execute <<-SQL
+          UPDATE #{table}
+          SET #{u_arr * ","} #{where_clause}
+        SQL
+        true
+      when Array
+        updates.each_with_index do |data, index|
+          update(ids[index], data)
+        end
+        
+      end
+    end
+    
+    def method_missing(method, *args, &block)
+      if method == :update_name
+        update(self.id, {name: *args[0]})
+      end
+    end
+    
+   end
+    
+    
+    
