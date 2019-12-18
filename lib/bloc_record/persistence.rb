@@ -89,10 +89,18 @@
 
        true
      end
-     def destroy_all(conditions_hash=nil)
-       if conditions_hash && !conditions_hash.empty?
-         conditions_hash = BlocRecord::Utility.convert_keys(conditions_hash)
-         conditions = conditions_hash.map {|key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
+
+     def destroy_all(parameters=nil)
+      if parameters && !parameters.empty?
+        case parameters
+        when Hash
+          parameters = BlocRecord::Utility.convert_keys(parameters)
+          conditions = parameters.map {|key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
+        when String
+          conditions = parameters
+        when Array
+          conditions = parameters.join("\nOR ")
+        end
  
          connection.execute <<-SQL
            DELETE FROM #{table}
